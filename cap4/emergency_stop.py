@@ -28,11 +28,21 @@ def mov_duckiebot(key):
 
 def det_duckie(obs):
     ### DETECTOR HECHO EN LA MISIÓN ANTERIOR
+    lower_yellow = np.array([140, 140, 0])
+    upper_yellow = np.array([255, 255, 0])
+    # Filtrar colores de la imagen en el rango utilizando
+    Filtro = cv2.inRange(obs, lower_yellow, upper_yellow)
+    # Busca contornos de blobs
+    # https://docs.opencv.org/trunk/d3/d05/tutorial_py_table_of_contents_contours.html
+    contours, hierarchy = cv2.findContours(Filtro, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+
     dets = list()
 
     for cnt in contours:
-
-        if AREA > min_area:
+        x, y, w, h = cv2.boundingRect(cnt)
+        AREA= w*h
+        if AREA > 400:
             # En lugar de dibujar, se agrega a la lista
             dets.append((x,y,w,h))
 
@@ -81,7 +91,7 @@ if __name__ == '__main__':
     duck_pos = np.array([2,0,2])
 
     # Constante que se debe calcular
-    C = 1 # f * dr (f es constante, dr es conocido)
+    C = 7.5867*8 # f * dr (f es constante, dr es conocido)
 
     while True:
 
@@ -96,42 +106,44 @@ if __name__ == '__main__':
 
         # Si hay alerta evitar que el Duckiebot avance
         if alert:
-            pass
+            if key == 119:
+                action[0] = 0
+            
 
         # Se ejecuta la acción definida anteriormente y se retorna la observación (obs),
         # la evaluación (reward), etc
         obs, reward, done, info = env.step(action)
 
         # Detección de patos, retorna lista de detecciones
-
+        dets=det_duckie(obs)
         # Dibuja las detecciones
-
+        obs = draw_dets(obs, dets)
         # Obtener posición del duckiebot
         dbot_pos = env.cur_pos
         # Calcular distancia real entre posición del duckiebot y pato
         # esta distancia se utiliza para calcular la constante
-        dist = CALCULAR
-
+        dist = duck_pos - dbot_pos
+        distEucli= np.sqrt(dist[0]**2+dist[2]**2)
         # La alerta se desactiva (opción por defecto)
         alert = False
         
         for d in dets:
             # Alto de la detección en pixeles
-            p = DEFINIR
+            p = d[3]
             # La aproximación se calcula según la fórmula mostrada en la capacitación
-            d_aprox = DEFINIR
+            d_aprox = C/p
 
             # Muestra información relevante
             print('p:', p)
             print('Da:', d_aprox)
-            print('Dr:', dist)
+            print('Dr:', distEucli)
 
             # Si la distancia es muy pequeña activa alerta
             if d_aprox < 0.3:
                 # Activar alarma
-
+                alert = True
                 # Muestra ventana en rojo
-
+                obs = red_alert(obs)
         # Se muestra en una ventana llamada "patos" la observación del simulador
         cv2.imshow('patos', cv2.cvtColor(obs, cv2.COLOR_RGB2BGR))
 
